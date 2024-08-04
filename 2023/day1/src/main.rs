@@ -1,83 +1,98 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, env, fs};
+
+#[derive(Debug)]
+struct Digit {
+    name: &'static str,
+    number: u32,
+}
+
+const DIGITS: [Digit; 9] = [
+    Digit { name: "one" , number: 1},
+    Digit { name: "two" , number: 2},
+    Digit { name: "three" , number: 3},
+    Digit { name: "four" , number: 4},
+    Digit { name: "five" , number: 5},
+    Digit { name: "six" , number: 6},
+    Digit { name: "seven" , number: 7},
+    Digit { name: "eight" , number: 8},
+    Digit { name: "nine" , number: 9},
+];
 
 fn main() {
-    let file = fs::read_to_string("input.txt").expect("Error reading file");
-    let digit_hash = digit_hash();
-    let mut line_digits = Vec::new();
+    let args: Vec<String> = env::args().collect();
+    let file = fs::read_to_string(&args[1]).expect("Error reading file");
 
-    for line in file.lines() {
-        let line = line.trim();
-        let digits = get_numbers(line, &digit_hash);
-
-        let combined = digits[0] * 10 + digits[digits.len() - 1];
-        line_digits.push(combined);
+    let mut forward_digit_hash = HashMap::new();
+    for digit in DIGITS.iter() {
+        let first_char = digit.name.chars().next().unwrap();
+        forward_digit_hash.entry(first_char).or_insert_with(Vec::new).push(digit);
     }
 
-    let sum: u32 = line_digits.iter().sum();
+    let mut backward_digit_hash = HashMap::new();
+    for digit in DIGITS.iter() {
+        let last_char = digit.name.chars().rev().next().unwrap();
+        backward_digit_hash.entry(last_char).or_insert_with(Vec::new).push(digit);
+    }
+
+    let mut sum = 0;
+    for line in file.lines() {
+        let line = line.trim();
+        let first_digit = get_first_digit(line, &forward_digit_hash).expect("Error finding first digit");
+        let last_digit = get_last_digit(line, &backward_digit_hash).expect("Error finding last digit");
+
+        let combined = first_digit * 10 + last_digit;
+        sum += combined
+    }
+
     println!("the result is {sum}");
 }
 
-fn get_numbers(s: &str, digit_hash: &HashMap<char, Vec<String>>) -> Vec<u32> {
-    let mut numbers: Vec<u32> = Vec::new();
-
-    println!("the digit hash is {:?}", digit_hash);
-
-    for (i, char) in s.chars().enumerate() {
-        match char.to_digit(10) {
-            Some(digit) => numbers.push(digit),
+fn get_first_digit(s: &str, digit_hash: &HashMap<char, Vec<&Digit>>) -> Option<u32> {
+    for (i, c) in s.chars().enumerate() {
+        match c.to_digit(10) {
+            Some(number) => return Some(number),
             None => {
-                if let Some(digits) = digit_hash.get(&char) {
-                    for digit in digits {
-                        if i + digit.len() <= s.len() && s[i..i+digit.len()] == digit[..] {
-                            let number = match &digit[..] {
-                                "one" => 1,
-                                "two" => 2,
-                                "three" => 3,
-                                "four" => 4,
-                                "five" => 5,
-                                "six" => 6,
-                                "seven" => 7,
-                                "eight" => 8,
-                                "nine" => 9,
-                                _ => 0
-                            };
-
-                            numbers.push(number);
+                match digit_hash.get(&c) {
+                    Some(digits) => {
+                        for digit in digits.iter() {
+                            let can_contain = i + digit.name.len() <= s.len();
+                            if can_contain && s[i..i + digit.name.len()].contains(digit.name) {
+                                return Some(digit.number);
+                            }
                         }
-                    }
+                    },
+                    None => continue
                 }
             }
         }
+
     }
 
-    numbers
+    None
 }
 
-const DIGITS: [&str; 9]= [
-    "one",
-    "two",
-    "three",
-    "four",
-    "five",
-    "six",
-    "seven",
-    "eight",
-    "nine"
-];
-
-fn digit_hash() -> HashMap<char, Vec<String>> {
-    let mut hash: HashMap<char, Vec<String>> = HashMap::new();
-
-    for digit in DIGITS {
-        let all_chars: Vec<char> = digit.chars().collect();
-        let first_char = all_chars[0];
-
-        if let Some(vector) = hash.get_mut(&first_char) {
-            vector.push(digit.to_string());
-        } else {
-            hash.insert(first_char, vec![digit.to_string()]);
+fn get_last_digit(s: &str, digit_hash: &HashMap<char, Vec<&Digit>>) -> Option<u32> {
+    let s_rev: String = s.chars().rev().collect();
+    for (i, c) in s_rev.chars().enumerate() {
+        match c.to_digit(10) {
+            Some(number) => return Some(number),
+            None => {
+                match digit_hash.get(&c) {
+                    Some(digits) => {
+                        for digit in digits.iter() {
+                            let rev_name: String = digit.name.chars().rev().collect();
+                            let can_contain = i + digit.name.len() <= s_rev.len();
+                            if can_contain && s_rev[i..i + digit.name.len()].contains(&rev_name) {
+                                return Some(digit.number);
+                            }
+                        }
+                    },
+                    None => continue
+                }
+            }
         }
+
     }
 
-    hash
+    None
 }
