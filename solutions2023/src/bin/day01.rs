@@ -22,27 +22,23 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file = fs::read_to_string(&args[1]).expect("Error reading file");
 
-    let mut forward_digit_hash = HashMap::new();
-    for digit in DIGITS.iter() {
-        let first_char = digit.name.chars().next().unwrap();
-        forward_digit_hash.entry(first_char).or_insert_with(Vec::new).push(digit);
+    let mut forward_digit_hash = HashMap::with_capacity(9);
+    let mut backward_digit_hash = HashMap::with_capacity(9);
+
+    for digit in &DIGITS {
+        forward_digit_hash.entry(digit.name.chars().next().unwrap())
+            .or_insert_with(Vec::new).push(digit);
+        backward_digit_hash.entry(digit.name.chars().rev().next().unwrap())
+            .or_insert_with(Vec::new).push(digit);
     }
 
-    let mut backward_digit_hash = HashMap::new();
-    for digit in DIGITS.iter() {
-        let last_char = digit.name.chars().rev().next().unwrap();
-        backward_digit_hash.entry(last_char).or_insert_with(Vec::new).push(digit);
-    }
-
-    let mut sum = 0;
-    for line in file.lines() {
-        let line = line.trim();
-        let first_digit = get_first_digit(line, &forward_digit_hash).expect("Error finding first digit");
-        let last_digit = get_last_digit(line, &backward_digit_hash).expect("Error finding last digit");
-
-        let combined = first_digit * 10 + last_digit;
-        sum += combined
-    }
+    let sum: u32 = file.lines()
+        .map(|line| {
+            let first_digit = get_first_digit(line, &forward_digit_hash).expect("Error finding first digit");
+            let last_digit = get_last_digit(line, &backward_digit_hash).expect("Error finding last digit");
+            first_digit * 10 + last_digit
+        })
+        .sum();
 
     println!("the result is {sum}");
 }
